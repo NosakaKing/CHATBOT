@@ -5,7 +5,7 @@ import AIClass from "../services/ai";
 import { getFullCurrentDate } from "src/utils/currentDate";
 import { pdfQuery } from "src/services/pdf";
 
-const PROMPT_SELLER = `Como experto en ventas con aproximadamente 15 años de experiencia en embudos de ventas y generación de leads, tu tarea es mantener una conversación agradable, responder a las preguntas del cliente sobre nuestros productos y, finalmente, guiarlos para reservar una cita. Tus respuestas deben basarse únicamente en el contexto proporcionado:
+const PROMPT_SELLER = `Como experto en ventas con aproximadamente 15 años de experiencia en embudos de ventas y generación de leads, tu tarea es mantener una conversación agradable, responder a las preguntas del cliente sobre nuestros productos. Tus respuestas deben basarse únicamente en el contexto proporcionado:
 
 ### DÍA ACTUAL
 {CURRENT_DAY}
@@ -27,41 +27,41 @@ Para proporcionar respuestas más útiles, puedes utilizar la información propo
 ### INTRUCCIONES
 - Mantén un tono profesional y siempre responde en primera persona.
 - NO ofrescas promociones que no existe en la BASE DE DATOS
-- Finaliza la conversacion con CTA ¿Te gustaria agendar un cita? ¿Quieres reservas una cita?
 - Continua la conversacion sin saludar en primera persona
+Si en caso pregunta por IVA dile el 15%
 
 Respuesta útil adecuadas para enviar por WhatsApp (en español):`
 
-
 export const generatePromptSeller = (history: string, database: string) => {
-    const nowDate = getFullCurrentDate()
+    const nowDate = getFullCurrentDate();
     return PROMPT_SELLER
         .replace('{HISTORY}', history)
         .replace('{CURRENT_DAY}', nowDate)
-        .replace('{DATABASE}', database)
+        .replace('{DATABASE}', database);
 };
 
 const flowSeller = addKeyword(EVENTS.ACTION)
     .addAnswer(`⏱️`)
     .addAction(async (_, { state, flowDynamic, extensions }) => {
         try {
+            const ai = extensions.ai as AIClass;
+            const lastMessage = getHistory(state).at(-1);
+            const history = getHistoryParse(state);
 
-            const ai = extensions.ai as AIClass
-            const lastMessage = getHistory(state).at(-1)
-            const history = getHistoryParse(state)
+            const dataBase = await pdfQuery(lastMessage.content);
 
-            const dataBase = await pdfQuery(lastMessage.content)
-            console.log({ dataBase })
-            const promptInfo = generatePromptSeller(history, dataBase)
 
+            const promptInfo = generatePromptSeller(history, dataBase);
+
+            // Crear la respuesta del AI
             const response = await ai.createChat([
                 {
                     role: 'system',
                     content: promptInfo
                 }
-            ])
+            ]);
 
-            await handleHistory({ content: response, role: 'assistant' }, state)
+            await handleHistory({ content: response, role: 'assistant' }, state);
 
             const chunks = response.split(/(?<!\d)\.\s+/g);
 
@@ -69,9 +69,9 @@ const flowSeller = addKeyword(EVENTS.ACTION)
                 await flowDynamic([{ body: chunk.trim(), delay: generateTimer(150, 250) }]);
             }
         } catch (err) {
-            console.log(`[ERROR]:`, err)
-            return
+            console.log(`[ERROR]:`, err);
+            return;
         }
-    })
+    });
 
-export { flowSeller }
+export { flowSeller };
